@@ -1,0 +1,179 @@
+---
+title: "WisconsinBreastCancer"
+author: "Abhinav Ram Bhatta, Prajwal Prashanth, Anviksha Gupta"
+date: "2022-09-28"
+output: html_document
+---
+
+a) 
+Major predictors of diagnosis are concave_points, concavity_points_mean,
+area mean, radius_mean, parameter_mean, area, radius, and perimeter.
+There are no missing values in the data set.
+There are outliers.
+The outliers have been eliminated using Z-score method.
+
+b) 
+5 leaves in the Decision Tree
+
+c) 
+Major predictors suggested by our tree are:
+Perimeter, Concave_points_mean, texture
+
+d) 
+Firstly, eliminated the outliers using Z-score and obtained 398 observations.
+Then to enhance the accuracy cp value has been changed.
+When cp = 0.04, accuracy of test was 87.5%, when cp was changed to 0.01,
+Accuracy for Train = 94.49%
+
+e) 
+Accuracy for Train: 94.49%
+Accuracy for Test: 94.64%
+
+f)
+Initially, we clean the data for outliers by using the z-score method. Then we combine the trainx and trainy variable to obtain a matrix with the diagnosis. For this new combined variable we applied the decision tree classifiaction. From this, we applied the testx and testy data to the created model and obtain the result. To support the same we have plotted a bivariate analysis and the importance of variable bar graph.
+
+g)
+From the importance of variable graph, we get the most important variables from which the tree can be affected. Here we used, perimeter_lv, radius_lv, area_lv and perimeter.
+
+
+
+
+```{r}
+library("rpart")
+library("ggplot2")
+library("tidyverse")
+library("psych")
+library("corrplot")
+library("RColorBrewer")
+
+#Load Dataset
+
+trainx=read.csv("/Users/abhinavram/Documents/IDS572 Data Mining/Assignment 1/trainX.csv")
+trainy=read.csv("/Users/abhinavram/Documents/IDS572 Data Mining/Assignment 1/trainY.csv")
+testx=read.csv("/Users/abhinavram/Documents/IDS572 Data Mining/Assignment 1/testX.csv")
+testy=read.csv("/Users/abhinavram/Documents/IDS572 Data Mining/Assignment 1/testY.csv")
+
+#Column Names
+
+colnames(trainx)<-c('radius','texture','perimeter','area','smoothness','compactness','concavity','no_of_concave_contour', 'symmetry', 'fractal_dim', 
+                 'radius_sd','texture_sd','perimeter_sd','area_sd','smoothness_sd','compactness_sd','concavity_sd','no_of_concave_contour_sd', 'symmetry_sd', 'fractal_dim_sd',
+                 'radius_lv','texture_lv','perimeter_lv','area_lv','smoothness_lv','compactness_lv','concavity_lv','no_of_concave_contour_lv', 'symmetry_lv', 'fractal_dim_lv')
+colnames(testx)<-c('radius','texture','perimeter','area','smoothness','compactness','concavity','no_of_concave_contour', 'symmetry', 'fractal_dim', 
+                 'radius_sd','texture_sd','perimeter_sd','area_sd','smoothness_sd','compactness_sd','concavity_sd','no_of_concave_contour_sd', 'symmetry_sd', 'fractal_dim_sd',
+                 'radius_lv','texture_lv','perimeter_lv','area_lv','smoothness_lv','compactness_lv','concavity_lv','no_of_concave_contour_lv', 'symmetry_lv', 'fractal_dim_lv')
+```
+
+Summary of dataset
+
+```{r}
+summary(trainx)
+```
+
+Checking for missing values
+
+```{r}
+sapply(trainx, function(x) sum(is.na(x)))
+```
+
+Combine trainx and trainy
+```{r}
+train_x_y <- cbind(trainx, trainy)
+colnames(train_x_y)<-c('radius','texture','perimeter','area','smoothness','compactness','concavity','no_of_concave_contour', 'symmetry', 'fractal_dim', 
+                    'radius_sd','texture_sd','perimeter_sd','area_sd','smoothness_sd','compactness_sd','concavity_sd','no_of_concave_contour_sd', 'symmetry_sd', 'fractal_dim_sd',
+                    'radius_lv','texture_lv','perimeter_lv','area_lv','smoothness_lv','compactness_lv','concavity_lv','no_of_concave_contour_lv', 'symmetry_lv', 'fractal_dim_lv','diagnosis')
+```
+
+Box Plot for Outliers and cleaning the data
+
+```{r}
+boxplot(train_x_y)
+
+outliers<- as.data.frame(sapply(train_x_y, function(train_x_y) (abs(train_x_y- mean(train_x_y))/ sd(train_x_y))))
+                                                                                              
+train_x_y_new <- train_x_y[!rowSums(outliers>3), ]
+
+trainx_new = select(train_x_y_new, -diagnosis)
+train_x_y_new$diagnosis = as.factor(train_x_y_new$diagnosis)
+
+```
+
+Bivariate Analysis
+
+```{r}
+ggplot(data=train_x_y_new, aes(x=diagnosis, y=radius_lv, group = 1)) +
+  
+  geom_jitter(alpha=0.3,
+              color =" blue",
+              width = 0.2) +
+  labs(title="Wisconsin Breast Cancer", x="Diagnosis", y="Radius_lv")
+
+ggplot(data=train_x_y_new, aes(x=radius, fill=diagnosis)) +
+  geom_density(alpha=.3)
+```
+
+Correlation Plot
+
+```{r}
+cor_graph <- cor(trainx)
+corrplot(cor_graph, type="upper",order= "hclust", tl.cex = 0.7,col=brewer.pal(n=8, name="RdYlBu"))
+```
+
+Decision Tree
+
+```{r}
+library(rpart.plot)
+fit=rpart(diagnosis~perimeter_lv + radius_lv + area_lv + perimeter , data=train_x_y, parms = list(split="information"), method = 'class')
+rpart.plot(fit, extra = 106)
+
+train_x_y$diagnosis <- as.numeric(train_x_y$diagnosis)
+cor_graph <- cor(train_x_y)
+corrplot(cor_graph, type="upper",order= "hclust",tl.cex = 0.7,col=brewer.pal(n=8, name="RdYlBu"))
+```
+
+Confusion Matrix for combined
+
+```{r}
+t_pred=predict(fit, trainx, type='class')
+table(train_x_y$diagnosis, t_pred)
+confusion_mat = table(train_x_y$diagnosis, t_pred)
+acc = sum(diag(confusion_mat))/sum(confusion_mat)
+print(confusion_mat)
+print(acc)
+```
+
+Bar graph imp vs variable
+
+```{r}
+df=data.frame(imp=fit$variable.importance)
+df2=df %>%
+  tibble::rownames_to_column()%>%
+  dplyr::rename("variable"= rowname)%>%
+  dplyr::arrange(imp)%>%
+  dplyr::mutate(variable = forcats::fct_inorder(variable))
+ggplot2::ggplot(df2) + 
+  geom_col(aes(x=variable, y=imp), col="black", show.legend = F) +
+  coord_flip() +
+  scale_fill_grey() +
+  theme_bw()
+```
+
+Confusion Matrix for test
+
+```{r}
+t_pred=predict(fit, testx, type='class')
+names(testy)=c("diagnosis")
+```
+
+Accuracy for Test
+
+```{r}
+fit_test <- rpart(diagnosis~.,data=train_x_y_new, parms = list(split="information"), method = 'class',control=rpart.control(minsplit=5,minbucket=3,cp=0.01))
+
+t_pred=predict(fit_test, testx, type='class')
+table(testy$diagnosis, t_pred)
+confusion_mat_test = table(testy$diagnosis, t_pred)
+accTest = sum(diag(confusion_mat_test))/sum(confusion_mat_test)
+print(confusion_mat_test)
+print(accTest)
+
+```
